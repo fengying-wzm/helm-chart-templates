@@ -1,0 +1,21 @@
+{{- $name := default .Release.Name .Values.nameOverride -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+spec:
+  type: {{ .Values.service.type }}
+  clusterIP: {{ .Values.service.clusterIP }}
+  ports:
+{{- if .Values.service.ports }}
+{{ toYaml .Values.service.ports | indent 4 }}
+{{- end }}
+  selector:
+    app: "{{ $name }}"
+  sessionAffinity: {{ .Values.service.sessionAffinity }}
+  sessionAffinityConfig:
+{{- if .Values.service.sessionAffinityConfig }}
+{{ toYaml .Values.service.sessionAffinityConfig | indent 4 }}
+{{- end }}

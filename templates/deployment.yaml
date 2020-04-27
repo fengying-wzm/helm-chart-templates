@@ -1,0 +1,93 @@
+{{- $name := default .Release.Name .Values.nameOverride -}}
+{{- if eq .Values.kind "StatefulSet" }}
+apiVersion: apps/v1beta1
+{{ else }}
+apiVersion: extensions/v1beta1
+{{- end }}
+kind: {{ .Values.kind | default "Deployment" }}
+metadata:
+  name: {{ $name }}
+  labels:
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+  annotations:
+{{- if .Values.annotations }}
+{{ toYaml .Values.annotations | indent 4 }}
+{{- end }}
+spec:
+  serviceName: {{ $name }}
+  strategy:
+{{- if .Values.strategy }}
+{{ toYaml .Values.strategy | indent 4 }}
+{{- end }}
+  updateStrategy:
+{{- if .Values.updateStrategy }}
+{{ toYaml .Values.updateStrategy | indent 4 }}
+{{- end }} 
+  replicas: {{ .Values.replicas }}
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+      annotations:
+      {{- if .Values.podAnnotations }}
+      {{ toYaml .Values.podAnnotations | indent 8 }}
+      {{- end }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds  }}
+      #-----数据卷----
+      volumes:
+{{- if .Values.volumes }}
+{{ toYaml .Values.volumes | indent 6 }}
+{{- end }}
+      containers:
+      #-----主镜像----
+      - name: {{ $name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+      #----环境变量----
+{{- if .Values.envFrom }}
+        envFrom:
+{{ toYaml .Values.envFrom | indent 8 }}
+{{- end }}
+        env:
+{{- if .Values.env }}
+{{ toYaml .Values.env | indent 8 }}
+{{- end }}        
+      #----容器端口----
+        ports:
+{{- if .Values.ports }}
+{{ toYaml .Values.ports | indent 8 }}
+{{- end }}
+      #----磁盘挂载----
+        volumeMounts:
+{{- if .Values.volumeMounts }}
+{{ toYaml .Values.volumeMounts | indent 8 }}
+{{- end }}
+        #----资源限制----
+{{- if .Values.resources }}
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+{{- end }}
+        #----健康检查----
+{{- if .Values.probe }}
+{{ toYaml .Values.probe | indent 8 }}
+{{- end }}
+      #----日志容器----
+{{- if .Values.filebeat }}
+{{ toYaml .Values.filebeat | indent 6 }}
+{{- end }}
+      #----亲和性设置----
+{{- if .Values.affinity }}
+      affinity:
+{{ toYaml .Values.affinity | indent 6 }}
+{{- end }}
+      #----容忍设置----
+{{- if .Values.tolerations }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 6 }}
+{{- end }}
+      #----节点选择器----
+{{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 6 }}
+{{- end }}

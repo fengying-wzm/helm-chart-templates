@@ -1,0 +1,142 @@
+#**********************************************************#
+#                      == Deployment ==                    #
+#**********************************************************#
+
+######---类型设置 (可选为Deployment、StatefulSet，默认为：Deployment)---######
+kind: Deployment
+## 默认使用Release Name
+nameOverride: ""
+## 镜像设置
+image:
+  repository: core.harbor.bbsp.paic.com.cn:32443/gpo/gpo-gateway
+  tag: latest
+  pullPolicy: Always
+
+## 副本数量
+replicas: 1
+
+## 更新策略，滚动升级
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+## Statefulset更新策略，滚动升级
+updateStrategy:
+  type: RollingUpdate
+## 环境变量
+env: []
+
+## 从configMap获取环境变量
+envFrom:
+  - configMapRef:
+      name: env-config
+
+## 端口设置
+ports: 
+  - name: server
+    containerPort: 80
+    protocol: TCP
+
+## 磁盘
+volumes:
+  - name: app-logs
+    emptyDir: {}
+  - name: config
+    configMap:
+      name: filebeat-config
+      items:
+        - key: filebeat.yml
+          path: etc/filebeat/filebeat.yaml
+
+## 主容器的磁盘挂载
+volumeMounts:
+  - name: app-logs
+    mountPath: /logs
+
+## 次容器,日志收集
+filebeat:
+  - name: filebeat
+    image: core.harbor.bbsp.paic.com.cn/library/filebeat:5.5.2
+    volumeMounts:
+      - name: app-logs
+        mountPath: /logs
+      - name: config
+        mountPath: /usr/share/filebeat/filebeat.yml
+        subPath: etc/filebeat/filebeat.yaml
+
+## Read && Live 探针设置 
+probe:
+  livenessProbe:
+    httpGet:
+      path: /actuator/health
+      port: 80
+    initialDelaySeconds: 90
+    periodSeconds: 10
+    successThreshold: 1
+    failureThreshold: 10
+    timeoutSeconds: 15
+  readinessProbe:
+    httpGet:
+      path: /actuator/health
+      port: 80
+    initialDelaySeconds: 90
+    periodSeconds: 10
+    successThreshold: 1
+    failureThreshold: 10
+    timeoutSeconds: 15
+
+## 资源限制
+resources: {}
+
+## Deployment Annotation
+annotations:
+  configmap.reloader.stakater.com/reload: "env-config"
+
+## Pod Annotation
+podAnnotations:
+
+## 节点选择
+nodeSelector: []
+
+## Toleration容忍设置
+tolerations: []
+
+## affinity亲和设置
+affinity: {}
+
+## 优雅关闭,默认30秒
+terminationGracePeriodSeconds: 20
+
+#**********************************************************#
+#                       == Service ==                      #
+#**********************************************************#
+
+service:
+  ## 类型有ClusterIP、NodePort、none
+  type: ClusterIP
+  ## 需要设置为Headless的时候
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+      ## type是NodePort的时候设置
+      # nodePort: 30080
+  sessionAffinity: None
+  sessionAffinityConfig: {}
+
+#**********************************************************#
+#                       == Ingress ==                      #
+#**********************************************************#
+
+ingress:
+  enabled: false
+  path: /
+  servicePort: http
+  hosts: []
+  tls: []
+  labels: []
+  annotations:
+    kubernetes.io/ingress.class: nginx
+
